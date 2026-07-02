@@ -1,21 +1,33 @@
 // ─── Config ──────────────────────────────────────────────────────────────────
 
 function getConfig() {
-  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('CONFIG');
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("CONFIG");
   return {
-    enable:  sheet.getRange('B1').getValue().toString().trim().toLowerCase(),
-    apiKey:  sheet.getRange('B2').getValue().toString().trim(),
-    today:   sheet.getRange('B3').getValue(), // Date object or timestamp from spreadsheet
-    groupBy: sheet.getRange('B4').getValue().toString().trim().split(',').map(s => s.trim()),
-    columns: sheet.getRange('B5').getValue().toString().trim().split(',').map(s => s.trim()),
+    enable: sheet.getRange("B1").getValue().toString().trim().toLowerCase(),
+    apiKey: sheet.getRange("B2").getValue().toString().trim(),
+    today: sheet.getRange("B3").getValue(), // Date object or timestamp from spreadsheet
+    groupBy: sheet
+      .getRange("B4")
+      .getValue()
+      .toString()
+      .trim()
+      .split(",")
+      .map((s) => s.trim()),
+    columns: sheet
+      .getRange("B5")
+      .getValue()
+      .toString()
+      .trim()
+      .split(",")
+      .map((s) => s.trim()),
   };
 }
 
 function formatDate(date) {
   const d = new Date(date);
   const yyyy = d.getFullYear();
-  const mm   = String(d.getMonth() + 1).padStart(2, '0');
-  const dd   = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd}`;
 }
 
@@ -25,40 +37,40 @@ function getDateRange(sheetName, today) {
   d.setHours(0, 0, 0, 0);
 
   switch (sheetName) {
-    case 'TODAY': {
+    case "TODAY": {
       const from = new Date(d);
       return { fromDate: formatDate(from), toDate: formatDate(from) };
     }
-    case 'YESTERDAY': {
+    case "YESTERDAY": {
       const from = new Date(d);
       from.setDate(from.getDate() - 1);
       return { fromDate: formatDate(from), toDate: formatDate(from) };
     }
-    case 'H-2':
-    case 'H-3':
-    case 'H-4': {
-      const daysBack = parseInt(sheetName.split('-')[1], 10);
+    case "H-2":
+    case "H-3":
+    case "H-4": {
+      const daysBack = parseInt(sheetName.split("-")[1], 10);
       const day = new Date(d);
       day.setDate(day.getDate() - daysBack);
       return { fromDate: formatDate(day), toDate: formatDate(day) };
     }
-    case 'LAST7DAY': {
+    case "LAST7DAY": {
       const from = new Date(d);
       from.setDate(from.getDate() - 6);
       return { fromDate: formatDate(from), toDate: formatDate(d) };
     }
-    case 'LAST30DAY': {
+    case "LAST30DAY": {
       const from = new Date(d);
       from.setDate(from.getDate() - 29);
       return { fromDate: formatDate(from), toDate: formatDate(d) };
     }
-    case 'THISMONTH': {
+    case "THISMONTH": {
       const from = new Date(d.getFullYear(), d.getMonth(), 1);
       return { fromDate: formatDate(from), toDate: formatDate(d) };
     }
-    case 'LASTMONTH': {
+    case "LASTMONTH": {
       const from = new Date(d.getFullYear(), d.getMonth() - 1, 1);
-      const to   = new Date(d.getFullYear(), d.getMonth(), 0);
+      const to = new Date(d.getFullYear(), d.getMonth(), 0);
       return { fromDate: formatDate(from), toDate: formatDate(to) };
     }
     default:
@@ -70,16 +82,16 @@ function getDateRange(sheetName, today) {
 
 // Fixed sheet column order: A=ID, B=NAME, C=GEO, D=REDIRECT, E=CONV, F=COST, G=CPA
 function buildRow(record, nameMap) {
-  const id          = record['campaign_id'] || '';
-  const cost        = parseFloat(record['cost']        || 0);
-  const conversions = parseFloat(record['conversions'] || 0);
-  const cpa         = conversions > 0 ? cost / conversions : 0;
+  const id = record["campaign_id"] || "";
+  const cost = parseFloat(record["cost"] || 0);
+  const conversions = parseFloat(record["conversions"] || 0);
+  const cpa = conversions > 0 ? cost / conversions : 0;
 
   return [
     id,
-    (nameMap && nameMap[id]) || '',
-    record['country_code'] || '',
-    record['redirects']    || 0,
+    (nameMap && nameMap[id]) || "",
+    record["country_code"] || "",
+    record["redirects"] || 0,
     conversions,
     cost,
     cpa,
@@ -87,20 +99,20 @@ function buildRow(record, nameMap) {
 }
 
 function formatDateTime(date) {
-  const d    = new Date(date);
+  const d = new Date(date);
   const yyyy = d.getFullYear();
-  const mm   = String(d.getMonth() + 1).padStart(2, '0');
-  const dd   = String(d.getDate()).padStart(2, '0');
-  const hh   = String(d.getHours()).padStart(2, '0');
-  const ii   = String(d.getMinutes()).padStart(2, '0');
-  const ss   = String(d.getSeconds()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const ii = String(d.getMinutes()).padStart(2, "0");
+  const ss = String(d.getSeconds()).padStart(2, "0");
   return `${yyyy}-${mm}-${dd} ${hh}:${ii}:${ss}`;
 }
 
 // ─── Sheet writer ─────────────────────────────────────────────────────────────
 
 function writeToSheet(sheetName, rows) {
-  const ss    = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
     throw new Error(`Sheet "${sheetName}" not found`);
@@ -118,43 +130,81 @@ function writeToSheet(sheetName, rows) {
   }
 
   // Update H1 with last update timestamp
-  sheet.getRange('H1').setValue(`LAST UPDATE: ${formatDateTime(new Date())}`);
+  sheet.getRange("J1").setValue(`LAST UPDATE: ${formatDateTime(new Date())}`);
 }
 
 // ─── Update functions (schedule-triggered) ───────────────────────────────────
 
 function updateReport(sheetName) {
   const config = getConfig();
-  if (config.enable !== 'y') return;
+  if (config.enable !== "y") return;
 
   const { fromDate, toDate } = getDateRange(sheetName, config.today);
   const admaven = new AdMaven(config.apiKey);
-  const data    = admaven.getReport(fromDate, toDate, config.groupBy, config.columns);
+  const data = admaven.getReport(
+    fromDate,
+    toDate,
+    config.groupBy,
+    config.columns,
+  );
 
   // Fetch campaign data for all unique IDs in the report, build id→name map
-  const uniqueIds = [...new Set(data.map(r => r['campaign_id']).filter(Boolean))];
-  const campaigns = admaven.getCampaigns(uniqueIds, 'name');
-  const nameMap   = campaigns.reduce((map, c) => { map[c.id] = c.name || ''; return map; }, {});
+  const uniqueIds = [
+    ...new Set(data.map((r) => r["campaign_id"]).filter(Boolean)),
+  ];
+  const campaigns = admaven.getCampaigns(uniqueIds, "name,id");
+  const nameMap = campaigns.reduce((map, c) => {
+    map[c.id] = c.name || "";
+    return map;
+  }, {});
 
-  const rows = data.map(record => buildRow(record, nameMap));
+  const rows = data.map((record) => buildRow(record, nameMap));
 
   writeToSheet(sheetName, rows);
 }
 
-function updateToday()     { updateReport('TODAY');     }
-function updateYesterday() { updateReport('YESTERDAY'); }
-function updateH2()        { updateReport('H-2');       }
-function updateH3()        { updateReport('H-3');       }
-function updateH4()        { updateReport('H-4');       }
-function updateLast7Day()  { updateReport('LAST7DAY');  }
-function updateLast30Day() { updateReport('LAST30DAY'); }
-function updateThisMonth() { updateReport('THISMONTH'); }
-function updateLastMonth() { updateReport('LASTMONTH'); }
+function updateToday() {
+  updateReport("TODAY");
+}
+function updateYesterday() {
+  updateReport("YESTERDAY");
+}
+function updateH2() {
+  updateReport("H-2");
+}
+function updateH3() {
+  updateReport("H-3");
+}
+function updateH4() {
+  updateReport("H-4");
+}
+function updateLast7Day() {
+  updateReport("LAST7DAY");
+}
+function updateLast30Day() {
+  updateReport("LAST30DAY");
+}
+function updateThisMonth() {
+  updateReport("THISMONTH");
+}
+function updateLastMonth() {
+  updateReport("LASTMONTH");
+}
 
 function updateAllReports() {
   const config = getConfig();
-  if (config.enable !== 'y') return;
+  if (config.enable !== "y") return;
 
-  const sheets = ['TODAY', 'YESTERDAY', 'H-2', 'H-3', 'H-4', 'LAST7DAY', 'LAST30DAY', 'THISMONTH', 'LASTMONTH'];
-  sheets.forEach(name => updateReport(name));
+  const sheets = [
+    "TODAY",
+    "YESTERDAY",
+    "H-2",
+    "H-3",
+    "H-4",
+    "LAST7DAY",
+    "LAST30DAY",
+    "THISMONTH",
+    "LASTMONTH",
+  ];
+  sheets.forEach((name) => updateReport(name));
 }
