@@ -85,7 +85,7 @@ function buildRow(record, nameMap) {
   const id = record["campaign_id"] || "";
   const cost = parseFloat(record["cost"] || 0);
   const conversions = parseFloat(record["conversions"] || 0);
-  const cpa = conversions > 0 ? cost / conversions : 0;
+  const cpa = conversions > 0 ? cost / conversions : cost;
 
   return [
     id,
@@ -189,6 +189,53 @@ function updateThisMonth() {
 }
 function updateLastMonth() {
   updateReport("LASTMONTH");
+}
+
+function updateDaily() {
+  const config = getConfig();
+  if (config.enable !== "y") return;
+
+  const today = new Date(config.today);
+  today.setHours(0, 0, 0, 0);
+  const from = new Date(today);
+  from.setDate(from.getDate() - 29);
+
+  const admaven = new AdMaven(config.apiKey);
+  const data = admaven.getReport(
+    formatDate(from),
+    formatDate(today),
+    ["report_date"],
+    ["redirects", "conversions", "cost"],
+  );
+
+  const rows = data
+    .map((record) => {
+      const cost = parseFloat(record["cost"] || 0);
+      const conversions = parseFloat(record["conversions"] || 0);
+      const cpa = conversions > 0 ? cost / conversions : cost;
+      return [
+        record["report_date"] || "",
+        record["redirects"] || 0,
+        conversions,
+        cost,
+        cpa,
+      ];
+    })
+    .sort((a, b) => (a[0] < b[0] ? 1 : a[0] > b[0] ? -1 : 0));
+
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName("DAILY");
+  if (!sheet) throw new Error('Sheet "DAILY" not found');
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, 5).clearContent();
+  }
+  if (rows.length > 0) {
+    sheet.getRange(2, 1, rows.length, 5).setValues(rows);
+  }
+
+  sheet.getRange("G1").setValue(`LAST UPDATE: ${formatDateTime(new Date())}`);
 }
 
 function updateAllReports() {
